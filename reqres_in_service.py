@@ -13,7 +13,7 @@ users = {}
 @app.post("/api/login")
 def login(auth: AuthData, response_model=LoginResponse):
     if auth.email in auth_db and auth.password == auth_db[auth.email]:
-        return LoginResponse()
+        return LoginResponse(token="QpwL5tke4Pnpja7X4")
     else:
         raise HTTPException(status_code=400, detail="неверный логин или пароль")
 

@@ -7,8 +7,5 @@ class AuthData(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    token: str = "QpwL5tke4Pnpja7X4"
+    token: str
 
-
-class LoginError(BaseModel):
-    error: str
