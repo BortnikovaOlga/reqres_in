@@ -1,8 +1,9 @@
 import pytest
 import requests
 from http import HTTPStatus
+
+from app.model.auth import LoginResponse
 from auth_db import auth_db
-from model.auth import LoginResponse
 
 
 @pytest.mark.usefixtures("app_url")

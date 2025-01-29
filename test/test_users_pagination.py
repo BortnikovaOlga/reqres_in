@@ -3,22 +3,12 @@ from http import HTTPStatus
 import pytest
 import requests
 
-from model.user import UserData
+from app.model.user import UserData
 
 
-@pytest.mark.usefixtures("app_url")
-class TestUsers:
+@pytest.mark.usefixtures("app_url", "insert_users")
+class TestUsersPagination:
     path = "/api/users"
-
-    @pytest.mark.smoke
-    def test_get_all_users(self, db_users):
-        """Получить всех пользователей."""
-        response = requests.get(f"{self.app_url}{self.path}")
-        assert response.status_code == HTTPStatus.OK
-        body = response.json()
-        total = len(db_users)
-        assert len(body["items"]) == total, f"В теле ответа ожидалось {total} количество записей"
-        assert body["total"] == total
 
     @pytest.mark.parametrize("page, size",
                              [
@@ -53,23 +43,3 @@ class TestUsers:
         assert response.status_code == HTTPStatus.OK
         body_2 = response.json()
         assert body_1 != body_2
-
-    @pytest.mark.parametrize("user_id", [1, 5, 12])
-    def test_get_user_by_id(self, user_id, db_users):
-        """Получить пользователя по ид."""
-        response = requests.get(f"{self.app_url}{self.path}/{user_id}")
-        assert response.status_code == HTTPStatus.OK
-        body = UserData.model_validate(response.json())
-        assert body == UserData(**db_users[user_id]), "В теле ответа ожидались другие данные"
-
-    @pytest.mark.parametrize("user_id", [-10, 0, 100])
-    def test_get_user_by_not_exist_id(self, user_id):
-        """Получить пользователя с несуществующим ид."""
-        response = requests.get(f"{self.app_url}{self.path}/{user_id}")
-        assert response.status_code == HTTPStatus.NOT_FOUND
-
-    @pytest.mark.parametrize("user_id", ["one"])
-    def test_get_user_by_invalid_id(self, user_id):
-        """Запрос пользователя с невалидным ид."""
-        response = requests.get(f"{self.app_url}{self.path}/{user_id}")
-        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY

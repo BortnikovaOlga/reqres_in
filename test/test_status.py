@@ -3,7 +3,7 @@ from http import HTTPStatus
 import pytest
 import requests
 
-from model.app_status import AppStatus
+from app.model.app_status import AppStatus
 
 
 @pytest.mark.smoke
@@ -12,8 +12,8 @@ class TestStatus:
     path = "/api/status"
 
     def test_check_status(self):
-        """."""
+        """проверить, что api-сервис отвечает."""
         response = requests.get(f"{self.app_url}{self.path}")
         assert response.status_code == HTTPStatus.OK
         body = AppStatus.model_validate(response.json())
-        assert body.users
+        assert body.database
