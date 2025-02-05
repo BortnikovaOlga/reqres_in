@@ -16,7 +16,7 @@ class TestLogin:
         """Авторизация с валидным логином и паролем."""
         response = requests.post(f"{self.app_url}{self.path}", json={"email": login, "password": auth_db[login]})
         assert response.status_code == HTTPStatus.OK
-        body = LoginResponse.validate(response.json())
+        body = LoginResponse.model_validate(response.json())
         assert body.token
 
     @pytest.mark.parametrize("password", ["", " ", "cityslick"])

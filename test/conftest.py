@@ -6,7 +6,8 @@ from json_loader import load_json
 
 @pytest.fixture(scope="session")
 def insert_users(_db_engine_):
-    """вставляет в БД записи из файла."""
+    """вставляет в БД записи из файла.
+    возвращает вписок пользователей добавленныхв БД."""
     data = load_json("app/users.json")
     assert len(data)
     users_list = [UserData(**user) for user in data]

@@ -17,6 +17,14 @@ class UserData(SQLModel, table=True, ):
     avatar: str
 
 
+class UsersDataPage(BaseModel):
+    items: list[UserData]
+    size: int
+    page: int
+    total: int
+    pages: int | None = Field(default=None)
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     first_name: str

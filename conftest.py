@@ -3,6 +3,8 @@ import dotenv
 import pytest
 from sqlmodel import create_engine
 
+from app.database.users_db_service import UserDBService
+
 
 @pytest.fixture(scope="session", autouse=True)
 def load_envs():
@@ -23,6 +25,11 @@ def app_url(request, _app_url_):
 @pytest.fixture(scope="session")
 def _db_engine_():
     return create_engine(os.getenv("DATABASE_ENGINE"), pool_size=os.getenv("DATABASE_POOL_SIZE", 10))
+
+
+@pytest.fixture
+def db_service(_db_engine_):
+    return UserDBService(_db_engine_)
 
 # @pytest.fixture(scope="session")
 # def _app_url_(request):

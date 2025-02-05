@@ -4,7 +4,7 @@ from http import HTTPStatus
 import pytest
 import requests
 
-from app.model.user import UserData, UserCreate
+from app.model.user import UserData, UserCreate, UsersDataPage
 
 
 @pytest.mark.usefixtures("app_url")
@@ -24,18 +24,25 @@ class TestGetUsers:
         assert response.status_code == HTTPStatus.OK
 
     @pytest.mark.smoke
-    def test_get_all_users(self, insert_users):
-        """Получить всех пользователей (пользователи уже созданы в БД)."""
+    @pytest.mark.usefixtures("insert_users")
+    def test_get_all_users(self, db_service):
+        """Получить всех пользователей (пользователи уже созданы в БД - в фикстуре).
+        Проверки :
+         - КО 200 ОК,
+         - количество пользователей в ответе совпадает с числом пользователей в массиве,
+         - поле total содержит то же число. """
         response = requests.get(f"{self.app_url}{self.path}")
         assert response.status_code == HTTPStatus.OK
-        body = response.json()
-        response_users = [UserData.model_validate(user) for user in body["items"]]
-        assert len(response_users) == body["total"]
-        for user in insert_users:
-            assert user in response_users
+        page_data = UsersDataPage.model_validate(response.json())
+        db_users = db_service.get_users()
+        assert set([user.id for user in page_data.items]) == set([user.id for user in db_users])
 
     def test_get_user_by_id(self, insert_users):
-        """Получить пользователя по ид."""
+        """Получить пользователя по ид. (ид рандомное из вставленных в БД)
+        Проверки :
+        - КО 200 ОК,
+        - в ответе поля page, size содержат числа из параметров запроса
+        - количество пользователей по формуле, в зависимости от получаемой страницы"""
         user = random.choice(insert_users)
         response = requests.get(f"{self.app_url}{self.path}/{user.id}")
         assert response.status_code == HTTPStatus.OK
@@ -43,7 +50,11 @@ class TestGetUsers:
         assert response_user == user
 
     def test_get_user_by_id_(self, created_user):
-        """Получить пользователя по ид пользователя."""
+        """Получить пользователя по ид пользователя. (Пользователь создан через апи в фикстре)
+        Проверки :
+        - КО 200 ОК,
+        - в ответе поля page, size содержат числа из параметров запроса
+        - количество пользователей по формуле, в зависимости от получаемой страницы"""
         response = requests.get(f"{self.app_url}{self.path}/{created_user.id}")
         assert response.status_code == HTTPStatus.OK
         user = UserData.model_validate(response.json())

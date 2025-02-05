@@ -22,19 +22,25 @@ class TestUpdateUser:
         response = requests.delete(f"{self.app_url}{self.path}/{user.id}")
         assert response.status_code == HTTPStatus.OK
 
-    def test_patch_user(self, created_user):
-        """обновить все поля."""
+    def test_patch_user(self, created_user, db_service):
+        """обновить все поля.
+         Проверки :
+         - КО 200 ОК,
+         - в ответе данные обновлены.
+         - в БД данные обновлены"""
         user_update = UserUpdate.random()
         response = requests.patch(f"{self.app_url}{self.path}/{created_user.id}", json=user_update.model_dump())
         assert response.status_code == HTTPStatus.OK
         body = response.json()
-        assert body["id"]
-        user_response = UserUpdate.model_validate(body)
-        assert user_response == user_update
+        assert UserUpdate.model_validate(body) == user_update
+        assert db_service.get_user(body["id"]) == UserData(**body)
 
     @pytest.mark.parametrize("attr_name", ["first_name", "last_name", "email", "avatar"])
     def test_patch_user_(self, created_user, attr_name):
-        """обновить только одно поле."""
+        """обновить только одно поле.
+        Проверки :
+         - КО 200 ОК,
+         - в ответе данные обновлены"""
         user_update = UserUpdate.random()
         attr_update = {attr_name: str(getattr(user_update, attr_name))}
         expected_user = UserData(**created_user.model_dump())
@@ -48,7 +54,7 @@ class TestUpdateUser:
 
     @pytest.mark.parametrize("field_name", ["email", "avatar"])
     def test_patch_user_with_invalid_data(self, created_user, field_name):
-        """обновить все поля, одно поле невалидное."""
+        """Негативная проверка, обновить, когда одно обязательное поле не заполнено."""
         user_update = UserUpdate.random()
         setattr(user_update, field_name, "")
         response = requests.patch(f"{self.app_url}{self.path}/{created_user.id}", json=user_update.model_dump())
