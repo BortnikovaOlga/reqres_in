@@ -3,7 +3,7 @@ from http import HTTPStatus
 import pytest
 import requests
 
-from model.user import UserData
+from model.user import UserData, UsersDataPage
 
 
 @pytest.mark.usefixtures("app_url")
@@ -12,13 +12,17 @@ class TestUsers:
 
     @pytest.mark.smoke
     def test_get_all_users(self, db_users):
-        """Получить всех пользователей."""
+        """Получить всех пользователей. Проверки :
+         - КО 200 ОК,
+         - количество пользователей в ответе совпадает с числом пользователей в массиве,
+         - поле total содержит то же число. """
         response = requests.get(f"{self.app_url}{self.path}")
         assert response.status_code == HTTPStatus.OK
-        body = response.json()
-        total = len(db_users)
-        assert len(body["items"]) == total, f"В теле ответа ожидалось {total} количество записей"
-        assert body["total"] == total
+        page_data = UsersDataPage.model_validate(response.json())
+        total_db = len(db_users)
+        total_items = len(page_data.items)
+        assert total_items == total_db, f"В теле ответа ожидалось {total_db} записей"
+        assert page_data.total == total_items
 
     @pytest.mark.parametrize("page, size",
                              [
@@ -28,35 +32,60 @@ class TestUsers:
                                  (1, 20), (2, 20)
                              ])
     def test_get_users_pagination(self, page, size):
-        """Получить пользователей постранично."""
+        """Получить пользователей постранично. Проверки :
+        - КО 200 ОК,
+        - в ответе поля page, size содержат числа из параметров запроса
+        - количество пользователей по формуле, в зависимости от получаемой страницы"""
         params = {"page": page, "size": size}
         response = requests.get(f"{self.app_url}{self.path}", params=params)
         assert response.status_code == HTTPStatus.OK
-        body = response.json()
-        assert body["page"] == page
-        assert body["size"] == size
-        total = body["total"]
-        assert len(body["items"]) == (
-            size if page * size <= total else (total % size if total > size * (page - 1) else 0))
-        for user in body["items"]:
-            UserData.model_validate(user)
+        data = UsersDataPage.model_validate(response.json())
+        assert data.page == page
+        assert data.size == size
+        assert len(data.items) == (size if size * page <= data.total else
+                                   (data.total % size if size * (page - 1) < data.total
+                                    else 0))
 
-    @pytest.mark.parametrize("page_1, page_2, size", [(1, 3, 4)])
-    def test_get_users_with_diff(self, page_1, page_2, size):
-        """Получить пользователей c двух разных страниц."""
+    @pytest.fixture
+    def get_users_data_page(self, request):
+        """фикстура, вернет данные страницы заданой первым параметром из параметризации."""
+        page_1, page_2, size = request.param
         params = {"page": page_1, "size": size}
         response = requests.get(f"{self.app_url}{self.path}", params=params)
         assert response.status_code == HTTPStatus.OK
-        body_1 = response.json()
+        data_1 = UsersDataPage.model_validate(response.json())
+        return data_1, page_2, size
+
+    @pytest.mark.parametrize("get_users_data_page", [(2, 3, 4), (1, 2, 8)], indirect=True)
+    def test_get_users_with_diff(self, get_users_data_page):
+        """Получить пользователей c двух разных страниц. Проверки :
+        - КО 200 ОК,
+        - ид пользователей с разных страниц - разные множества."""
+        data_1, page_2, size = get_users_data_page
         params = {"page": page_2, "size": size}
         response = requests.get(f"{self.app_url}{self.path}", params=params)
         assert response.status_code == HTTPStatus.OK
-        body_2 = response.json()
-        assert body_1 != body_2
+        data_2 = UsersDataPage.model_validate(response.json())
+        assert set([user.id for user in data_1.items]) != set([user.id for user in data_2.items])
+
+    @pytest.mark.parametrize("size", [5, 12, 20])
+    def test_check_pages_count(self, size):
+        """Получить данные страниц без указания page. Проверки :
+        - КО 200 ОК,
+        - вернулась страница 1.
+        - количество страниц проверка по формуле, зависит от size.
+        """
+        response = requests.get(f"{self.app_url}{self.path}", params={"size": size})
+        assert response.status_code == HTTPStatus.OK
+        data = UsersDataPage.model_validate(response.json())
+        assert data.pages == (data.total // size + 1 if data.total % size else data.total // size)
 
     @pytest.mark.parametrize("user_id", [1, 5, 12])
     def test_get_user_by_id(self, user_id, db_users):
-        """Получить пользователя по ид."""
+        """Получить пользователя по ид. Проверки :
+        - КО 200 ОК,
+        - данные пользователя из ответа совпадают с данными пользователя в 'БД' "
+        """
         response = requests.get(f"{self.app_url}{self.path}/{user_id}")
         assert response.status_code == HTTPStatus.OK
         body = UserData.model_validate(response.json())

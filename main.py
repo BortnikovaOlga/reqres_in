@@ -11,7 +11,6 @@ from fastapi_pagination import Page, paginate, add_pagination
 
 app = FastAPI()
 
-
 users = {}
 
 
@@ -30,7 +29,7 @@ def login(auth: AuthData) -> LoginResponse:
 
 @app.get("/api/users")
 def get_users() -> Page[UserData]:
-    all_users = [UserData.validate(user) for user in users.values()]
+    all_users = [UserData.model_validate(user) for user in users.values()]
     return paginate(all_users)
 
 
@@ -47,7 +46,8 @@ def get_user(user_id: int) -> UserData:
 if __name__ == "__main__":
     import uvicorn
 
-    add_pagination(app)
-    users = load_json("test/users.json")
     dotenv.load_dotenv()
+    users = load_json("users.json")
+
+    add_pagination(app)
     uvicorn.run(app, host=os.getenv("HOST"), port=int(os.getenv("PORT")))
