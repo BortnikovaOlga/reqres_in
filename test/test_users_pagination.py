@@ -1,12 +1,11 @@
 from http import HTTPStatus
 
 import pytest
-import requests
 
 from app.model.user import UsersDataPage
 
 
-@pytest.mark.usefixtures("app_url", "insert_users")
+@pytest.mark.usefixtures("insert_users")
 class TestUsersPagination:
     path = "/api/users"
 
@@ -17,13 +16,14 @@ class TestUsersPagination:
                                  (2, 6), (1, 12),
                                  (1, 20), (2, 20)
                              ])
-    def test_get_users_pagination(self, page, size):
+    def test_get_users_pagination(self, page, size, users_api):
         """Получить пользователей постранично. Проверки :
         - КО 200 ОК,
         - в ответе поля page, size содержат числа из параметров запроса
         - количество пользователей по формуле, в зависимости от получаемой страницы"""
-        params = {"page": page, "size": size}
-        response = requests.get(f"{self.app_url}{self.path}", params=params)
+
+        response = users_api.get_paginated(page, size)
+
         assert response.status_code == HTTPStatus.OK
         data = UsersDataPage.model_validate(response.json())
         assert data.page == page
@@ -33,36 +33,37 @@ class TestUsersPagination:
                                     else 0))
 
     @pytest.mark.parametrize("size", [5, 12, 50])
-    def test_check_pages_count(self, size):
+    def test_check_pages_count(self, size, users_api):
         """Получить данные страницы 1 без указания page. Проверки :
         - КО 200 ОК,
         - вернулась страница 1.
         - количество страниц - проверка по формуле, зависит от size.
         """
-        response = requests.get(f"{self.app_url}{self.path}", params={"size": size})
+        response = users_api.get_paginated(size=size)
+
         assert response.status_code == HTTPStatus.OK
         data = UsersDataPage.model_validate(response.json())
         assert data.page == 1
         assert data.pages == (data.total // size + 1 if data.total % size else data.total // size)
 
     @pytest.fixture
-    def get_users_data_page(self, request):
+    def get_users_data_page(self, request, users_api):
         """фикстура, вернет данные страницы заданой первым параметром из параметризации."""
         page_1, page_2, size = request.param
-        params = {"page": page_1, "size": size}
-        response = requests.get(f"{self.app_url}{self.path}", params=params)
+        response = users_api.get_paginated(page_1, size)
+
         assert response.status_code == HTTPStatus.OK
         data_1 = UsersDataPage.model_validate(response.json())
         return data_1, page_2, size
 
     @pytest.mark.parametrize("get_users_data_page", [(2, 3, 4), (1, 2, 8)], indirect=True)
-    def test_get_users_with_diff(self, get_users_data_page):
+    def test_get_users_with_diff(self, get_users_data_page, users_api):
         """Получить пользователей c двух разных страниц. Проверки :
         - КО 200 ОК,
         - множества ид пользователей с разных страниц - разные множества."""
         data_1, page_2, size = get_users_data_page
-        params = {"page": page_2, "size": size}
-        response = requests.get(f"{self.app_url}{self.path}", params=params)
+        response = users_api.get_paginated(page_2, size)
+
         assert response.status_code == HTTPStatus.OK
         data_2 = UsersDataPage.model_validate(response.json())
         assert set([user.id for user in data_1.items]) != set([user.id for user in data_2.items])

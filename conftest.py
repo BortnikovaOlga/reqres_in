@@ -4,41 +4,40 @@ import pytest
 from sqlmodel import create_engine
 
 from app.database.users_db_service import UserDBService
+from client.api.login_api import LoginApi
+from client.api.user_api import UsersApi
+from model.envs import Envs
 
 
-@pytest.fixture(scope="session", autouse=True)
-def load_envs():
-    """Загрузка переменных окружения из файла .env"""
+@pytest.fixture(scope="session")
+def envs() -> Envs:
     dotenv.load_dotenv()
+    envs_instance = Envs(
+        app_url=os.getenv("APP_URL"),
+        host=os.getenv("HOST"),
+        port=os.getenv("PORT"),
+        db_engine=os.getenv("DATABASE_ENGINE"),
+        test_username=os.getenv("TEST_USERNAME"),
+        test_password=os.getenv("TEST_PASSWORD")
+    )
+    return envs_instance
 
 
 @pytest.fixture(scope="session")
-def _app_url_():
-    return os.getenv("APP_URL")
-
-
-@pytest.fixture
-def app_url(request, _app_url_):
-    request.cls.app_url = _app_url_
-
-
-@pytest.fixture(scope="session")
-def _db_engine_():
-    return create_engine(os.getenv("DATABASE_ENGINE"), pool_size=os.getenv("DATABASE_POOL_SIZE", 10))
+def _db_engine_(envs):
+    return create_engine(envs.db_engine, pool_size=os.getenv("DATABASE_POOL_SIZE", 10))
 
 
 @pytest.fixture
 def db_service(_db_engine_):
     return UserDBService(_db_engine_)
 
-# @pytest.fixture(scope="session")
-# def _app_url_(request):
-#     return request.config.getoption("--app-url")
 
-# def pytest_addoption(parser):
-#     parser.addoption(
-#         "--app-url",
-#         action="store",
-#         help="enter app url",
-#         default="http://127.0.0.1:8008",
-#     ),
+@pytest.fixture
+def users_api(envs):
+    return UsersApi(f"{envs.app_url}/api")
+
+
+@pytest.fixture
+def login_api(envs):
+    return LoginApi(f"{envs.app_url}/api")

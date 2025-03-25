@@ -1,36 +1,27 @@
-import requests
 from requests import Response
-from allure_commons.types import AttachmentType
-from requests_toolbelt.utils.dump import dump_response
-from allure import attach
+
+from client.session import BaseSession
 
 
 class HttpClient:
 
-    def __init__(self, token: str):
-        self._session = requests.session()
-        self.set_headers({
-            'Accept': 'application/json',
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
-        })
-        self._session.hooks["response"].append(self.attach_response)
+    def __init__(self, base_url):
+        self.session = BaseSession(base_url)
+        # self.set_headers({
+        #     'Accept': 'application/json',
+        #     'Content-Type': 'application/json'
+        # })
 
-    def set_headers(self, headers):
-        self._session.headers.update(headers)
+    def set_headers(self, headers: dict):
+        self.session.headers.update(headers)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._session.close()
+        self.session.close()
 
-    @staticmethod
-    def attach_response(response: Response, *args, **kwargs):
-        attachment_name = response.request.method + " " + response.request.url
-        attach(dump_response(response), attachment_name, attachment_type=AttachmentType.TEXT)
-
-    def request(self, method: str, url: str, **kwargs) -> Response:
+    def request(self, method: str, url: str = None, **kwargs) -> Response:
         """
         Request method
         method: method for the new Request object: get, OPTIONS, HEAD, POST, PUT, PATCH, or DELETE. # noqa
@@ -40,19 +31,19 @@ class HttpClient:
             json – (optional) A JSON serializable Python object to send in the body of the Request. # noqa
             headers – (optional) Dictionary of HTTP Headers to send with the Request.
         """
-        return self._session.request(method, url, **kwargs)
+        return self.session.request(method, url, **kwargs)
 
-    def get(self, url, **kwargs):
-        return self._session.get(url, **kwargs)
+    def get(self, url=None, **kwargs):
+        return self.session.request("GET", url, **kwargs)
 
-    def post(self, url, **kwargs):
-        return self._session.post(url, **kwargs)
+    def post(self, url=None, **kwargs):
+        return self.session.request("POST", url, **kwargs)
 
-    def put(self, url, **kwargs):
-        return self._session.put(url, **kwargs)
+    def put(self, url=None, **kwargs):
+        return self.session.request("PUT", url, **kwargs)
 
-    def patch(self, url, **kwargs):
-        return self._session.patch(url, **kwargs)
+    def patch(self, url=None, **kwargs):
+        return self.session.request("PATCH", url, **kwargs)
 
-    def delete(self, url, **kwargs):
-        return self._session.delete(url, **kwargs)
+    def delete(self, url=None, **kwargs):
+        return self.session.request("DELETE", url, **kwargs)
